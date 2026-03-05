@@ -1,0 +1,86 @@
+[
+  {
+    "slug": "classic-white-smoke",
+    "name": "Classic White Smoke",
+    "type": "drift_effect",
+    "rarity": "common",
+    "source_description": "Beat your first ghost rival"
+  },
+  {
+    "slug": "midnight-blue-smoke",
+    "name": "Midnight Blue Smoke",
+    "type": "drift_effect",
+    "rarity": "rare",
+    "source_description": "Beat a medium-difficulty ghost"
+  },
+  {
+    "slug": "volcanic-red-smoke",
+    "name": "Volcanic Red Smoke",
+    "type": "drift_effect",
+    "rarity": "epic",
+    "source_description": "Beat a hard ghost on Akina"
+  },
+  {
+    "slug": "golden-smoke",
+    "name": "Golden Smoke",
+    "type": "drift_effect",
+    "rarity": "legendary",
+    "source_description": "Win 10 ghost battles in a single run"
+  },
+  {
+    "slug": "night-cruiser",
+    "name": "Night Cruiser",
+    "type": "music_track",
+    "rarity": "common",
+    "source_description": "Survive a night run weather event"
+  },
+  {
+    "slug": "mountain-pass-ballad",
+    "name": "Mountain Pass Ballad",
+    "type": "music_track",
+    "rarity": "rare",
+    "source_description": "Beat a ghost on Myogi Night Run"
+  },
+  {
+    "slug": "eurobeat-extreme",
+    "name": "Eurobeat Extreme",
+    "type": "music_track",
+    "rarity": "epic",
+    "source_description": "Beat a hard ghost with a 30+ day streak"
+  },
+  {
+    "slug": "apex-legend-theme",
+    "name": "Apex Legend Theme",
+    "type": "music_track",
+    "rarity": "legendary",
+    "source_description": "Complete a platinum-tier run"
+  },
+  {
+    "slug": "stock-exhaust",
+    "name": "Stock Exhaust Note",
+    "type": "engine_sound",
+    "rarity": "common",
+    "source_description": "Complete your first ghost win"
+  },
+  {
+    "slug": "sport-exhaust",
+    "name": "Sport Exhaust Growl",
+    "type": "engine_sound",
+    "rarity": "rare",
+    "source_description": "Beat 5 ghosts total"
+  },
+  {
+    "slug": "rotary-scream",
+    "name": "Rotary Wail",
+    "type": "engine_sound",
+    "rarity": "epic",
+    "source_description": "Beat a ghost on Usui Pass"
+  },
+  {
+    "slug": "rb26-symphony",
+    "name": "RB26 Symphony",
+    "type": "engine_sound",
+    "rarity": "legendary",
+    "source_description": "Win 3 consecutive ghost battles"
+  }
+]

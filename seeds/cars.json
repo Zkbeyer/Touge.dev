@@ -1,0 +1,122 @@
+[
+  {
+    "slug": "ae86-trueno",
+    "name": "Hachi-Roku",
+    "base_model": "AE86 Trueno",
+    "rarity": "common",
+    "description": "The iconic panda. Light, nimble, and timeless. Where legends begin.",
+    "perk_slug": "smooth_line"
+  },
+  {
+    "slug": "s13-silvia",
+    "name": "The Silver Bullet",
+    "base_model": "S13 Silvia",
+    "rarity": "common",
+    "description": "Rear-wheel drive perfection. Slides like it was born to drift.",
+    "perk_slug": "rain_tires"
+  },
+  {
+    "slug": "fc-rx7",
+    "name": "Rotary Ghost",
+    "base_model": "FC RX-7",
+    "rarity": "common",
+    "description": "Twin-rotor screamer. Light and fast with that unmistakable wail.",
+    "perk_slug": "smooth_line"
+  },
+  {
+    "slug": "ek9-civic",
+    "name": "Street King",
+    "base_model": "EK9 Civic Type R",
+    "rarity": "common",
+    "description": "FF legend. High-revving VTEC, impossible cornering speed.",
+    "perk_slug": "hairpin_specialist"
+  },
+  {
+    "slug": "s14-silvia",
+    "name": "The Black Knight",
+    "base_model": "S14 Silvia",
+    "rarity": "rare",
+    "description": "Wide-body aggression. Power everywhere, grip when you need it.",
+    "perk_slug": "draft_master"
+  },
+  {
+    "slug": "fd-rx7",
+    "name": "The Widow Maker",
+    "base_model": "FD RX-7",
+    "rarity": "rare",
+    "description": "Sequential twin-turbo rotary. Beautiful and treacherous in equal measure.",
+    "perk_slug": "smooth_line"
+  },
+  {
+    "slug": "evo-vi",
+    "name": "Rally God",
+    "base_model": "Mitsubishi Lancer Evo VI",
+    "rarity": "rare",
+    "description": "AWD, turbocharged fury. Eats weather for breakfast.",
+    "perk_slug": "rain_tires"
+  },
+  {
+    "slug": "r32-gtr",
+    "name": "Godzilla",
+    "base_model": "Nissan Skyline GT-R R32",
+    "rarity": "rare",
+    "description": "The car that rewrote the rulebook. ATTESA AWD, twin-turbo RB26.",
+    "perk_slug": "lucky_find"
+  },
+  {
+    "slug": "nsx-na1",
+    "name": "The Doctor",
+    "base_model": "Honda NSX NA1",
+    "rarity": "epic",
+    "description": "Mid-engine balance engineered by Ayrton Senna. Precision personified.",
+    "perk_slug": "hairpin_specialist"
+  },
+  {
+    "slug": "r34-gtr",
+    "name": "Emperor",
+    "base_model": "Nissan Skyline GT-R R34",
+    "rarity": "epic",
+    "description": "The pinnacle. 6-speed, ATTESA Pro, twin-turbo. Bred for the Nürburgring.",
+    "perk_slug": "momentum"
+  },
+  {
+    "slug": "supra-a80",
+    "name": "2JZ Legend",
+    "base_model": "Toyota Supra A80",
+    "rarity": "epic",
+    "description": "Built to be tuned. The 2JZ-GTE is basically indestructible.",
+    "perk_slug": "fuel_economy"
+  },
+  {
+    "slug": "lancer-evo-ix",
+    "name": "Final Form",
+    "base_model": "Mitsubishi Lancer Evo IX MR",
+    "rarity": "epic",
+    "description": "The last true Evo. Every lesson learned, perfected.",
+    "perk_slug": "rain_tires"
+  },
+  {
+    "slug": "wrx-sti-22b",
+    "name": "The Prototype",
+    "base_model": "Subaru Impreza 22B STi",
+    "rarity": "legendary",
+    "description": "400 units. Wide-arch, EJ22 punched out. A homologation special that became a myth.",
+    "perk_slug": "momentum"
+  },
+  {
+    "slug": "ae86-group-a",
+    "name": "Panda God",
+    "base_model": "AE86 Trueno Group A Spec",
+    "rarity": "legendary",
+    "description": "The Hachi-Roku pushed to its absolute limit. Race-prepared, stripped out, obsessively tuned.",
+    "perk_slug": "smooth_line"
+  },
+  {
+    "slug": "fd-rx7-spirit-r",
+    "name": "Final Rotation",
+    "base_model": "FD RX-7 Spirit R Type A",
+    "rarity": "legendary",
+    "description": "The last FD ever built. 1,500 units. Factory lightweight, factory perfection.",
+    "perk_slug": "draft_master"
+  }
+]

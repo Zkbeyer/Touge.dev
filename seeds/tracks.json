@@ -1,0 +1,50 @@
+[
+  {
+    "slug": "akina-downhill",
+    "name": "Akina Downhill",
+    "description": "The legendary mountain pass. Hairpins, blind corners, steep drops. This is where legends are made.",
+    "length_days": 14,
+    "base_seconds_per_segment": 45,
+    "difficulty": "beginner"
+  },
+  {
+    "slug": "usui-pass",
+    "name": "Usui Pass",
+    "description": "Narrow roads carved into the mountainside. One mistake and you're off the cliff.",
+    "length_days": 21,
+    "base_seconds_per_segment": 42,
+    "difficulty": "beginner"
+  },
+  {
+    "slug": "myogi-night-run",
+    "name": "Myogi Night Run",
+    "description": "Racing by moonlight on unlit mountain roads. The fog rolls in thick.",
+    "length_days": 28,
+    "base_seconds_per_segment": 48,
+    "difficulty": "intermediate"
+  },
+  {
+    "slug": "irohazaka-descent",
+    "name": "Irohazaka Descent",
+    "description": "48 hairpin bends in a row. Each one tighter than the last. A true test of commitment.",
+    "length_days": 30,
+    "base_seconds_per_segment": 50,
+    "difficulty": "intermediate"
+  },
+  {
+    "slug": "tsukuba-circuit",
+    "name": "Tsukuba Circuit",
+    "description": "The ultimate test. Full circuit with technical chicanes and high-speed sweepers.",
+    "length_days": 45,
+    "base_seconds_per_segment": 55,
+    "difficulty": "expert"
+  },
+  {
+    "slug": "hakone-mountain",
+    "name": "Hakone Mountain",
+    "description": "A brutal all-weather pass. Snow, rain, fog — nature throws everything at you.",
+    "length_days": 60,
+    "base_seconds_per_segment": 52,
+    "difficulty": "expert"
+  }
+]

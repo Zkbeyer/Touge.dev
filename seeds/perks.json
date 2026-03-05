@@ -1,0 +1,51 @@
+[
+  {
+    "slug": "smooth_line",
+    "name": "Smooth Line",
+    "description": "Your car finds the perfect racing line. Base segment time -5%.",
+    "effect_type": "segment_time_multiplier",
+    "effect_value": -0.05
+  },
+  {
+    "slug": "draft_master",
+    "name": "Draft Master",
+    "description": "You exploit every slipstream. Ghost/rival win points +10%.",
+    "effect_type": "ghost_points_bonus",
+    "effect_value": 0.10
+  },
+  {
+    "slug": "rain_tires",
+    "name": "Rain Tires",
+    "description": "Specialized compound eats up wet roads. Weather time penalties -15%.",
+    "effect_type": "weather_penalty_multiplier",
+    "effect_value": -0.15
+  },
+  {
+    "slug": "lucky_find",
+    "name": "Lucky Find",
+    "description": "You always find something useful after a hard run. Gas drop chance +10%.",
+    "effect_type": "gas_drop_chance_bonus",
+    "effect_value": 0.10
+  },
+  {
+    "slug": "hairpin_specialist",
+    "name": "Hairpin Specialist",
+    "description": "You're made for tight corners. Corner time saves +8%.",
+    "effect_type": "corner_save_multiplier",
+    "effect_value": 0.08
+  },
+  {
+    "slug": "momentum",
+    "name": "Momentum",
+    "description": "At 10+ streak: absorb one crash without gas cost. Resets after use.",
+    "effect_type": "streak_crash_shield",
+    "effect_value": 1.0
+  },
+  {
+    "slug": "fuel_economy",
+    "name": "Fuel Economy",
+    "description": "Your engine sips fuel. Gas covers 2 consecutive missed days instead of 1.",
+    "effect_type": "gas_efficiency",
+    "effect_value": 0.5
+  }
+]
