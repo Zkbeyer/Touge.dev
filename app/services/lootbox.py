@@ -11,10 +11,10 @@ from app.models.user import User
 from app.services.events import _roll
 
 TIER_THRESHOLDS = [
-    ("platinum", 120),
-    ("gold", 80),
-    ("silver", 50),
-    ("bronze", 0),
+    ("platinum", 200),  # Rare: requires high streak (50+) + strong challenge performance
+    ("gold",     120),  # Uncommon: solid run with 14+ streak + most challenges met
+    ("silver",    60),  # Common: average run with some challenges
+    ("bronze",     0),  # Default: just completing a run
 ]
 
 TIER_DROP_RATES: dict[str, dict[str, float]] = {

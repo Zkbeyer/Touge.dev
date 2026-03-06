@@ -70,7 +70,30 @@ class CatchUpSummaryResponse(BaseModel):
     days: list[SummaryDayResponse]
 
 
+class TodayChallengeDetail(BaseModel):
+    event_type: str
+    corner_type: str | None = None
+    weather_type: str | None = None
+    ghost_name: str | None = None
+    ghost_difficulty: str | None = None
+    requirement: dict | None = None
+    current_value: int = 0
+    met: bool = False
+    time_save_seconds: int | None = None
+    penalty_seconds: int | None = None
+
+
+class TodayStatusResponse(BaseModel):
+    qualified: bool
+    streak_applied: bool
+    segment_advanced: bool
+    has_challenges: bool
+    all_challenges_met: bool
+    challenges: list[TodayChallengeDetail] = []
+
+
 class RunResponse(BaseModel):
     run: RunState | None
     user: UserSummary
     catchup_summary: CatchUpSummaryResponse | None = None
+    today_status: TodayStatusResponse | None = None

@@ -14,14 +14,12 @@ class LeetCodeClient:
         """Returns True if the LeetCode username resolves to a valid profile."""
         async with httpx.AsyncClient(timeout=15.0) as client:
             try:
-                resp = await client.get(
-                    f"{self.base_url}/userProfileCalendar",
-                    params={"username": username, "year": datetime.now().year},
-                )
+                resp = await client.get(f"{self.base_url}/{username}")
                 if resp.status_code != 200:
                     return False
                 data = resp.json()
-                return bool(data)
+                # Valid profile has a username field
+                return bool(data.get("username") or data.get("name") or data.get("totalSolved") is not None)
             except Exception:
                 return False
 
@@ -38,14 +36,13 @@ class LeetCodeClient:
         async with httpx.AsyncClient(timeout=15.0) as client:
             try:
                 resp = await client.get(
-                    f"{self.base_url}/recentSubmissions",
-                    params={"username": username, "limit": 40},
+                    f"{self.base_url}/{username}/submission",
+                    params={"limit": 40},
                 )
                 if resp.status_code != 200:
                     return counts
-                submissions = resp.json()
-                if not isinstance(submissions, list):
-                    submissions = submissions.get("submission", [])
+                data = resp.json()
+                submissions = data if isinstance(data, list) else data.get("submission", [])
             except Exception:
                 return counts
 

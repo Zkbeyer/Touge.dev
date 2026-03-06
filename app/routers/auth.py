@@ -12,11 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.dependencies import get_current_user, get_db
+from app.models.car import CarCatalog, CarOwnership
 from app.models.oauth import OAuthToken
 from app.models.stats import LifetimeStats
 from app.models.user import User
 from app.schemas.auth import TokenResponse, UserResponse
 from app.services.github import GitHubClient
+from app.services.processor import get_or_create_run
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -105,10 +107,24 @@ async def github_oauth_callback(
     result = await db.execute(stmt)
     user = result.scalar_one()
 
-    # Ensure lifetime stats row exists
+    # Ensure lifetime stats row exists; detect new user
     stats = await db.get(LifetimeStats, user.id)
-    if not stats:
-        db.add(LifetimeStats(id=user.id, user_id=user.id))
+    is_new_user = stats is None
+    if is_new_user:
+        stats = LifetimeStats(id=user.id, user_id=user.id)
+        db.add(stats)
+        await db.flush()  # so stats is tracked in session
+
+        # Award starter car (ae86-trueno)
+        ae86 = await db.scalar(select(CarCatalog).where(CarCatalog.slug == "ae86-trueno"))
+        if ae86:
+            db.add(CarOwnership(user_id=user.id, car_catalog_id=ae86.id, obtained_at=datetime.now(timezone.utc)))
+            user.active_car_id = ae86.id
+            stats.total_cars_owned += 1
+            await db.flush()
+
+        # Create initial run
+        await get_or_create_run(user, db)
 
     # Encrypt and store token
     fernet = Fernet(settings.token_encryption_key.encode() if isinstance(settings.token_encryption_key, str) else settings.token_encryption_key)
@@ -132,7 +148,8 @@ async def github_oauth_callback(
     await db.commit()
 
     jwt_token = _create_jwt(user.id)
-    return TokenResponse(access_token=jwt_token)
+    new_flag = "1" if is_new_user else "0"
+    return RedirectResponse(url=f"/?token={jwt_token}&new_user={new_flag}")
 
 
 @router.post("/logout")
@@ -156,4 +173,5 @@ async def get_me(current_user: User = Depends(get_current_user)):
         gas=current_user.gas,
         leetcode_validated=current_user.leetcode_validated,
         leetcode_username=current_user.leetcode_username,
+        active_car_id=str(current_user.active_car_id) if current_user.active_car_id else None,
     )
