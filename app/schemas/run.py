@@ -3,12 +3,18 @@ from datetime import date
 from pydantic import BaseModel, computed_field
 
 
+class SegmentInfo(BaseModel):
+    type: str   # straight | sweeper | chicane | hairpin
+    name: str
+
+
 class TrackInfo(BaseModel):
     id: str
     name: str
     slug: str
     length_days: int
     difficulty: str
+    segment_layout: list[SegmentInfo] | None = None
 
 
 class RunState(BaseModel):
@@ -18,7 +24,6 @@ class RunState(BaseModel):
     stopwatch_seconds: int
     corner_saves: int
     weather_penalties_taken: int
-    ghost_wins: int
     start_date: date
     last_processed_date: date | None
 
@@ -35,6 +40,18 @@ class RunState(BaseModel):
             return 0
         return min(100, int(self.segment_index / self.track.length_days * 100))
 
+    @computed_field
+    @property
+    def current_segment(self) -> SegmentInfo | None:
+        """The segment the car is currently on (1-based index into layout)."""
+        layout = self.track.segment_layout
+        if not layout or self.segment_index == 0:
+            return None
+        idx = self.segment_index - 1
+        if 0 <= idx < len(layout):
+            return layout[idx]
+        return None
+
 
 class UserSummary(BaseModel):
     id: str
@@ -44,6 +61,7 @@ class UserSummary(BaseModel):
     gas: int
     total_points: int
     spendable_points: int
+    active_car_id: str | None = None
 
 
 class SummaryDayResponse(BaseModel):
@@ -53,9 +71,7 @@ class SummaryDayResponse(BaseModel):
     crashed: bool
     corner_completed: bool | None
     weather_survived: bool | None
-    ghost_won: bool | None
     stopwatch_delta: int
-    ghost_points: int = 0
 
 
 class CatchUpSummaryResponse(BaseModel):
@@ -64,9 +80,7 @@ class CatchUpSummaryResponse(BaseModel):
     gas_used: int
     crashed: bool
     stopwatch_delta: int
-    ghost_wins: int
     run_completed: bool
-    lootboxes_awarded: int
     days: list[SummaryDayResponse]
 
 
@@ -74,8 +88,6 @@ class TodayChallengeDetail(BaseModel):
     event_type: str
     corner_type: str | None = None
     weather_type: str | None = None
-    ghost_name: str | None = None
-    ghost_difficulty: str | None = None
     requirement: dict | None = None
     current_value: int = 0
     met: bool = False

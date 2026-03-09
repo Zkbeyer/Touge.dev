@@ -109,9 +109,9 @@ def _serialize_summary(s: CatchUpSummary) -> dict:
         "gas_used": s.gas_used,
         "crashed": s.crashed,
         "stopwatch_delta": s.stopwatch_delta,
-        "ghost_wins": s.ghost_wins,
+        # "ghost_wins": s.ghost_wins,        # ghost removed
         "run_completed": s.run_completed,
-        "lootboxes_awarded": s.lootboxes_awarded,
+        # "lootboxes_awarded": s.lootboxes_awarded,  # lootbox removed
         "days": [
             {
                 "date": str(d.date),
@@ -123,8 +123,8 @@ def _serialize_summary(s: CatchUpSummary) -> dict:
                 "stopwatch_delta": d.stopwatch_delta,
                 "corner_completed": d.corner_completed,
                 "weather_survived": d.weather_survived,
-                "ghost_won": d.ghost_won,
-                "ghost_points": d.ghost_points,
+                # "ghost_won": d.ghost_won,      # ghost removed
+                # "ghost_points": d.ghost_points,  # ghost removed
             }
             for d in s.days
         ],
@@ -219,8 +219,8 @@ def _serialize_today_status(status: TodayStatus) -> dict:
                 "event_type": c.event_type,
                 "corner_type": c.corner_type,
                 "weather_type": c.weather_type,
-                "ghost_name": c.ghost_name,
-                "ghost_difficulty": c.ghost_difficulty,
+                # "ghost_name": c.ghost_name,          # ghost removed
+                # "ghost_difficulty": c.ghost_difficulty, # ghost removed
                 "requirement": c.requirement,
                 "current_value": c.current_value,
                 "met": c.met,

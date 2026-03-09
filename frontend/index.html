@@ -1,136 +1,23 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TOUGE.DEV</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-
-<canvas id="mountain-canvas"></canvas>
-
-<!-- Top bar (z:10) -->
-<header id="topbar">
-  <div id="topbar-logo">TOUGE<span class="logo-dot">·</span>DEV</div>
-  <div id="topbar-stats">
-    <div class="stat-pill" id="sp-streak"></div>
-    <div class="stat-pill" id="sp-gas"></div>
-    <div class="stat-pill" id="sp-pts"></div>
-    <div class="stat-pill" id="sp-spend"></div>
-  </div>
-  <button id="exit-btn" onclick="logout()">Exit</button>
-</header>
-
-<!-- Run floating cards (z:15) -->
-<div id="run-cards">
-  <div id="card-track"></div>
-  <div id="card-stopwatch"></div>
-  <div id="card-segment"></div>
-  <div id="card-today">
-    <div id="today-header"></div>
-    <div id="today-body" hidden>
-      <div id="today-msg"></div>
-      <div id="challenges-list"></div>
-      <div id="today-actions"></div>
-    </div>
-  </div>
-  <div id="catchup-banner"></div>
-</div>
-
-<!-- Bottom navbar (z:20) -->
-<nav id="navbar">
-  <button class="nav-btn active" data-scene="run">Run</button>
-  <button class="nav-btn" data-scene="garage">Garage</button>
-  <button class="nav-btn" data-scene="inventory">Box <span id="inv-badge"></span></button>
-  <button class="nav-btn" data-scene="profile">Driver</button>
-  <button class="nav-btn" data-scene="settings">Settings</button>
-  <button class="nav-btn dev-btn" data-scene="dev">Dev</button>
-</nav>
-
-<!-- Scenes (z:30) -->
-<div class="scene" id="scene-garage">
-  <div class="scene-header">
-    <h2 class="scene-title">Garage</h2>
-    <button class="scene-close-btn">&#x2715;</button>
-  </div>
-  <div id="garage-layout">
-    <div id="garage-canvas-wrap"><canvas id="car-canvas"></canvas></div>
-    <div id="garage-panel">
-      <div id="car-list"></div>
-      <div id="cosmetics-section">
-        <div class="section-label">Cosmetics</div>
-        <div id="cosmetics-list"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="scene" id="scene-inventory">
-  <div class="scene-header">
-    <h2 class="scene-title">Inventory</h2>
-    <button class="scene-close-btn">&#x2715;</button>
-  </div>
-  <div id="lootbox-grid"></div>
-</div>
-
-<div class="scene" id="scene-profile">
-  <div class="scene-header">
-    <h2 class="scene-title">Driver</h2>
-    <button class="scene-close-btn">&#x2715;</button>
-  </div>
-  <div id="profile-hero"></div>
-  <div id="profile-stats-grid"></div>
-  <div id="profile-pbs"></div>
-</div>
-
-<div class="scene" id="scene-settings">
-  <div class="scene-header">
-    <h2 class="scene-title">Settings</h2>
-    <button class="scene-close-btn">&#x2715;</button>
-  </div>
-  <div id="settings-lc"></div>
-</div>
-
-<div class="scene" id="scene-dev">
-  <div class="scene-header">
-    <h2 class="scene-title">Dev</h2>
-    <button class="scene-close-btn">&#x2715;</button>
-  </div>
-  <div id="dev-controls"></div>
-  <pre id="dev-dump"></pre>
-</div>
-
-<!-- Modal (z:40) -->
-<div id="modal" hidden>
-  <div id="modal-box">
-    <canvas id="lootbox-canvas"></canvas>
-    <div id="modal-result" hidden></div>
-    <button id="modal-close" hidden>Continue</button>
-  </div>
-</div>
-
-<!-- Boot (z:50) -->
-<div id="boot-screen">
-  <canvas id="boot-canvas"></canvas>
-  <div id="boot-content">
-    <div id="boot-kanji">峠</div>
-    <div id="boot-logo">TOUGE<span class="logo-dot">·</span>DEV</div>
-    <p id="boot-sub">Gamified Coding Streak</p>
-    <button id="boot-btn" onclick="window.location='/auth/github'">Continue with GitHub</button>
-    <p id="boot-tagline">Your code is your throttle</p>
-  </div>
-</div>
-
-<!-- Toasts (z:60) -->
-<div id="toast-container"></div>
-
-<script src="/static/canvas.js"></script>
-<script src="/static/state.js"></script>
-<script src="/static/ui.js"></script>
-<script src="/static/app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TOUGE.DEV</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body, #root { height: 100%; width: 100%; }
+      body { background: #f5f3ef; font-family: 'Inter', system-ui, sans-serif; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

@@ -26,13 +26,20 @@ async def load_json(filename: str) -> list:
 
 async def seed_tracks(db: AsyncSession) -> None:
     data = await load_json("tracks.json")
+    created = 0
+    updated = 0
     for item in data:
         existing = await db.scalar(select(Track).where(Track.slug == item["slug"]))
         if existing:
+            # Always update segment_layout in case it changed
+            if "segment_layout" in item and existing.segment_layout != item["segment_layout"]:
+                existing.segment_layout = item["segment_layout"]
+                updated += 1
             continue
         db.add(Track(**item))
+        created += 1
     await db.flush()
-    print(f"  Seeded {len(data)} tracks")
+    print(f"  Seeded {created} tracks, updated {updated} segment layouts")
 
 
 async def seed_perks(db: AsyncSession) -> dict[str, Perk]:

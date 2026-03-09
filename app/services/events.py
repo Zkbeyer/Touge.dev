@@ -8,9 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.activity import DailyActivity
 from app.models.event import DailyRunEvents
 
-CORNER_CHANCE = 0.60
-WEATHER_CHANCE = 0.40
-GHOST_CHANCE = 0.30
+# Weather: independent random chance per day, cannot stack
+WEATHER_CHANCE = 0.25  # 25% — lower than before so corner+weather combo is rare
 
 CORNER_TYPES = ["sweeper", "chicane", "hairpin"]
 CORNER_SAVES = {"sweeper": 10, "chicane": 18, "hairpin": 30}
@@ -18,12 +17,10 @@ CORNER_SAVES = {"sweeper": 10, "chicane": 18, "hairpin": 30}
 WEATHER_TYPES = ["fog", "rain", "night_run"]
 WEATHER_PENALTIES = {"fog": 15, "rain": 30, "night_run": 45}
 
-GHOST_DIFFICULTIES = ["easy", "medium", "hard"]
-GHOST_POINTS = {"easy": 50, "medium": 100, "hard": 200}
-
-# Ghost name word lists for deterministic generation
-_ADJECTIVES = ["Silent", "Burning", "Midnight", "Thunder", "Neon", "Shadow", "Iron", "Ghost", "Phantom", "Storm"]
-_NOUNS = ["Drift", "Apex", "Line", "Pass", "Ridge", "Peak", "Spiral", "Curve", "Descent", "Edge"]
+# --- Ghost/rival feature removed (commented out, to be re-added later) ---
+# GHOST_CHANCE = 0.30
+# GHOST_DIFFICULTIES = ["easy", "medium", "hard"]
+# GHOST_POINTS = {"easy": 50, "medium": 100, "hard": 200}
 
 
 def _roll(identifier: str | uuid.UUID, event_date: date, event_type: str, salt: str = "v1") -> float:
@@ -70,30 +67,6 @@ def _generate_weather_requirement(weather_type: str, has_leetcode: bool) -> dict
         return {"type": "commits", "count": 3}
 
 
-def _generate_ghost_requirement(ghost_difficulty: str, segment_index: int, has_leetcode: bool) -> dict:
-    """Generate ghost/rival win requirement."""
-    if ghost_difficulty == "easy":
-        return {"type": "commits", "count": 2}
-    elif ghost_difficulty == "medium":
-        if has_leetcode:
-            return {"type": "commits_or_lc", "commits": 3, "lc": 1}
-        return {"type": "commits", "count": 4}
-    else:  # hard
-        if has_leetcode:
-            return {"type": "lc_medium", "count": 1}
-        return {"type": "commits", "count": 5}
-
-
-def _generate_ghost_name(user_id: uuid.UUID, event_date: date) -> str:
-    adj_roll = _roll(user_id, event_date, "ghost_adj")
-    noun_roll = _roll(user_id, event_date, "ghost_noun")
-    adj = _ADJECTIVES[int(adj_roll * len(_ADJECTIVES))]
-    noun = _NOUNS[int(noun_roll * len(_NOUNS))]
-    # Add a number suffix from the roll
-    num = int(_roll(user_id, event_date, "ghost_num") * 99) + 1
-    return f"{adj}{noun}{num:02d}"
-
-
 def evaluate_requirement(req: dict | None, activity: DailyActivity) -> bool:
     """Returns True if daily activity satisfies the event requirement."""
     if req is None:
@@ -125,9 +98,15 @@ async def get_or_roll_events(
     segment_index: int,
     has_leetcode: bool,
     db: AsyncSession,
+    segment_type: str | None = None,
 ) -> DailyRunEvents:
     """
     Returns existing event record (deterministic) or rolls new events for the day.
+
+    segment_type: the type from the track's segment_layout (e.g. "hairpin", "sweeper", "chicane",
+    "straight", or None). If "straight" or None, no corner event is created.
+    Corner events are no longer probabilistic — they are always present on corner segments.
+    Weather is still random (25% chance) and independent.
     """
     existing = await db.scalar(
         select(DailyRunEvents).where(
@@ -138,21 +117,15 @@ async def get_or_roll_events(
     if existing:
         return existing
 
-    # Roll once — stored deterministically
-    corner_roll = _roll(user_id, event_date, "corner")
-    weather_roll = _roll(user_id, event_date, "weather")
-    ghost_roll = _roll(user_id, event_date, "ghost")
-
-    # Corner: 60% chance
+    # Corner: determined entirely by track layout — no random roll
     corner_type = corner_req = corner_save = None
-    if corner_roll < CORNER_CHANCE:
-        # Pick type based on sub-roll
-        type_roll = _roll(user_id, event_date, "corner_type")
-        corner_type = _pick_by_roll(CORNER_TYPES, type_roll)
+    if segment_type and segment_type != "straight":
+        corner_type = segment_type  # sweeper / chicane / hairpin
         corner_req = _generate_corner_requirement(corner_type, segment_index, has_leetcode)
         corner_save = CORNER_SAVES[corner_type]
 
-    # Weather: 40% chance
+    # Weather: independent 25% random chance — cannot stack (one type per day max)
+    weather_roll = _roll(user_id, event_date, "weather")
     weather_type = weather_req = weather_penalty = None
     if weather_roll < WEATHER_CHANCE:
         type_roll = _roll(user_id, event_date, "weather_type")
@@ -160,31 +133,27 @@ async def get_or_roll_events(
         weather_req = _generate_weather_requirement(weather_type, has_leetcode)
         weather_penalty = WEATHER_PENALTIES[weather_type]
 
-    # Ghost: 30% chance
-    ghost_name = ghost_diff = ghost_req = None
-    if ghost_roll < GHOST_CHANCE:
-        diff_roll = _roll(user_id, event_date, "ghost_diff")
-        ghost_diff = _pick_by_roll(GHOST_DIFFICULTIES, diff_roll)
-        ghost_req = _generate_ghost_requirement(ghost_diff, segment_index, has_leetcode)
-        ghost_name = _generate_ghost_name(user_id, event_date)
+    # --- Ghost/rival feature removed ---
+    # ghost_roll = _roll(user_id, event_date, "ghost")
+    # ... ghost logic commented out for now ...
 
     record = DailyRunEvents(
         user_id=user_id,
         date=event_date,
         run_id=run_id,
         segment_index=segment_index,
-        corner_roll=corner_roll,
+        corner_roll=None,      # no longer used — corner presence is layout-driven
         weather_roll=weather_roll,
-        ghost_roll=ghost_roll,
+        ghost_roll=None,       # ghost removed for now
         corner_type=corner_type,
         corner_requirement=corner_req,
         corner_time_save_seconds=corner_save,
         weather_type=weather_type,
         weather_requirement=weather_req,
         weather_penalty_seconds=weather_penalty,
-        ghost_name=ghost_name,
-        ghost_difficulty=ghost_diff,
-        ghost_requirement=ghost_req,
+        ghost_name=None,
+        ghost_difficulty=None,
+        ghost_requirement=None,
     )
     db.add(record)
     return record

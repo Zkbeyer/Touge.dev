@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, Integer, String
+from sqlalchemy import Boolean, Integer, JSON, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,3 +18,6 @@ class Track(Base):
     base_seconds_per_segment: Mapped[int] = mapped_column(Integer, nullable=False)
     difficulty: Mapped[str] = mapped_column(String(32), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Predefined segment layout: list of {"type": "straight"|"sweeper"|"chicane"|"hairpin", "name": str}
+    # Length must match length_days. If None, all segments treated as straights (no corner events).
+    segment_layout: Mapped[list | None] = mapped_column(JSON, nullable=True)

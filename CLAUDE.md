@@ -3,6 +3,7 @@
 ## Stack
 - FastAPI + SQLAlchemy 2 (async) + PostgreSQL + Redis + Celery
 - Python 3.12, uv for package management
+- **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS v3 + React Three Fiber + Framer Motion + TanStack Query v5 + Zustand
 
 ## Key Architectural Decisions
 - GitHub OAuth is REQUIRED. LeetCode is OPTIONAL (validated username).
@@ -20,6 +21,17 @@
 - app/services/lootbox.py — rewards
 - seeds/ — track/car/perk/cosmetic catalog
 - alembic/versions/ — migrations
+- app/main.py — serves frontend/dist/ as static files (SPA fallback)
+- frontend/src/App.tsx — auth gate + view router + QueryClientProvider
+- frontend/src/store/index.ts — Zustand store (token persisted)
+- frontend/src/lib/api.ts — typed fetch client (Bearer token, auto-logout on 401)
+- frontend/src/scene/MountainScene.tsx — R3F canvas entry
+
+## Frontend Dev
+- `cd frontend && npm run dev` → Vite dev server :5173, proxies all API paths to :8000
+- `npm run build` → outputs to frontend/dist/ (served by FastAPI)
+- Design: warm paper tones (#f5f3ef) for UI chrome; dark scene-bg (#0d0c12) inside R3F canvas only
+- Settings endpoint: PUT /settings/leetcode {username}, DELETE /settings/leetcode (not POST)
 
 ## Conventions
 - All timestamps in UTC in DB; convert to user TZ at read time.

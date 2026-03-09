@@ -13,6 +13,7 @@ from app.schemas.run import (
     CatchUpSummaryResponse,
     RunResponse,
     RunState,
+    SegmentInfo,
     SummaryDayResponse,
     TodayChallengeDetail,
     TodayStatusResponse,
@@ -40,10 +41,14 @@ def _user_summary(user: User) -> UserSummary:
         gas=user.gas,
         total_points=user.total_points,
         spendable_points=user.spendable_points,
+        active_car_id=str(user.active_car_id) if user.active_car_id else None,
     )
 
 
 def _run_state(run: Run, track: Track) -> RunState:
+    layout = None
+    if track.segment_layout:
+        layout = [SegmentInfo(type=s["type"], name=s["name"]) for s in track.segment_layout]
     return RunState(
         id=str(run.id),
         track=TrackInfo(
@@ -52,12 +57,12 @@ def _run_state(run: Run, track: Track) -> RunState:
             slug=track.slug,
             length_days=track.length_days,
             difficulty=track.difficulty,
+            segment_layout=layout,
         ),
         segment_index=run.segment_index,
         stopwatch_seconds=run.stopwatch_seconds,
         corner_saves=run.corner_saves,
         weather_penalties_taken=run.weather_penalties_taken,
-        ghost_wins=run.ghost_wins,
         start_date=run.start_date,
         last_processed_date=run.last_processed_date,
     )
@@ -70,9 +75,7 @@ def _summary_response(summary: CatchUpSummary) -> CatchUpSummaryResponse:
         gas_used=summary.gas_used,
         crashed=summary.crashed,
         stopwatch_delta=summary.stopwatch_delta,
-        ghost_wins=summary.ghost_wins,
         run_completed=summary.run_completed,
-        lootboxes_awarded=summary.lootboxes_awarded,
         days=[
             SummaryDayResponse(
                 date=d.date,
@@ -81,9 +84,7 @@ def _summary_response(summary: CatchUpSummary) -> CatchUpSummaryResponse:
                 crashed=d.crashed,
                 corner_completed=d.corner_completed,
                 weather_survived=d.weather_survived,
-                ghost_won=d.ghost_won,
                 stopwatch_delta=d.stopwatch_delta,
-                ghost_points=d.ghost_points,
             )
             for d in summary.days
         ],
@@ -102,8 +103,6 @@ def _today_status_response(status: TodayStatus) -> TodayStatusResponse:
                 event_type=c.event_type,
                 corner_type=c.corner_type,
                 weather_type=c.weather_type,
-                ghost_name=c.ghost_name,
-                ghost_difficulty=c.ghost_difficulty,
                 requirement=c.requirement,
                 current_value=c.current_value,
                 met=c.met,
@@ -157,7 +156,6 @@ async def get_run(
         select(Run).where(Run.user_id == current_user.id, Run.is_complete == False)
     )
 
-    # Ensure there's always a run (brand-new user with no activity yet)
     if active_run is None:
         active_run, _ = await get_or_create_run(current_user, db)
         await db.commit()
@@ -181,9 +179,10 @@ async def process_run(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Re-evaluate today's challenges with fresh activity.
+    Re-evaluate today's challenges with fresh activity data.
     If all challenges are met, advances the segment.
     Also catches up any unprocessed past days first.
+    Call this after making a commit to check if your progress qualifies.
     """
     tz = ZoneInfo(current_user.timezone)
     today = datetime.now(tz).date()
@@ -204,11 +203,10 @@ async def process_run(
             catchup_summary = _summary_response(summary)
             await db.refresh(current_user)
 
-    # Phase 2: resolve today's challenges
+    # Phase 2: resolve today's challenges with fresh data
     today_status_data = await process_today_phase2(current_user, db, force_finalize=False)
     await db.refresh(current_user)
 
-    # Re-fetch run
     active_run = await db.scalar(
         select(Run).where(Run.user_id == current_user.id, Run.is_complete == False)
     )
