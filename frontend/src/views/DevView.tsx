@@ -21,6 +21,7 @@ export function DevView() {
   const qc = useQueryClient()
   const addToast = useStore((s) => s.addToast)
   const [stateDump, setStateDump] = useState<string | null>(null)
+  const [commitDump, setCommitDump] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   const action = async (path: string, body?: unknown, method: 'POST' | 'GET' = 'POST') => {
@@ -44,6 +45,47 @@ export function DevView() {
     try {
       const result = await api.get('/test/state')
       setStateDump(JSON.stringify(result, null, 2))
+    } catch (e: unknown) {
+      addToast(e instanceof Error ? e.message : 'Error', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const getCommitDebug = async () => {
+    setLoading(true)
+    try {
+      const result = await api.get('/test/activity/github-debug') as {
+        date: string
+        user_timezone: string
+        cached_activity: { commit_count: number | null; fetched_at: string | null; is_finalized: boolean | null }
+        live_github: { commit_count: number | null; error: string | null; push_events: unknown[] }
+      }
+      // Format a readable summary
+      const lines = [
+        `Date: ${result.date} (${result.user_timezone})`,
+        ``,
+        `── Cached in DB ──`,
+        `  commit_count : ${result.cached_activity.commit_count ?? 'none'}`,
+        `  fetched_at   : ${result.cached_activity.fetched_at ?? 'never'}`,
+        `  is_finalized : ${result.cached_activity.is_finalized ?? 'n/a'}`,
+        ``,
+        `── Live from GitHub API ──`,
+        `  commit_count : ${result.live_github.commit_count ?? 'n/a'}`,
+        result.live_github.error ? `  error        : ${result.live_github.error}` : '',
+        ``,
+        `── Push Events ──`,
+        ...result.live_github.push_events.map((e: unknown) => {
+          const ev = e as Record<string, unknown>
+          if (ev.error) return `  ERROR: ${ev.error}`
+          const commits = (ev.commits as { sha: string; message: string; author: string }[]) ?? []
+          return [
+            `  ${ev.repo}  (${ev.pushed_at_local})`,
+            ...commits.map((c) => `    [${c.sha}] ${c.author}: ${c.message}`),
+          ].join('\n')
+        }),
+      ].filter((l) => l !== '').join('\n')
+      setCommitDump(lines)
     } catch (e: unknown) {
       addToast(e instanceof Error ? e.message : 'Error', 'error')
     } finally {
@@ -108,6 +150,12 @@ export function DevView() {
         ))}
       </Section>
 
+      <Section title="GitHub Activity">
+        <Button size="sm" variant="primary" onClick={getCommitDebug} disabled={loading}>
+          Fetch Commits (live)
+        </Button>
+      </Section>
+
       <Section title="State">
         <Button size="sm" variant="primary" onClick={getState} disabled={loading}>
           Dump State
@@ -123,6 +171,15 @@ export function DevView() {
           Reset Account
         </Button>
       </Section>
+
+      {commitDump && (
+        <div className="mt-4">
+          <Divider label="GitHub Commits" />
+          <pre className="mt-2 p-3 bg-ink text-paper/80 text-[10px] font-mono rounded-card overflow-x-auto whitespace-pre-wrap">
+            {commitDump}
+          </pre>
+        </div>
+      )}
 
       {stateDump && (
         <div className="mt-4">

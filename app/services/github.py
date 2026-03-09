@@ -22,6 +22,46 @@ class GitHubClient:
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
+    async def fetch_push_events_debug(self, github_username: str, target_date: date, user_tz: str = "UTC") -> list[dict]:
+        """Return simplified push events for target_date — for debugging only."""
+        tz = ZoneInfo(user_tz)
+        events_out = []
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for page in range(1, 4):
+                url = f"{GITHUB_API_BASE}/users/{github_username}/events"
+                resp = await client.get(url, headers=self.headers, params={"per_page": EVENTS_PER_PAGE, "page": page})
+                if resp.status_code != 200:
+                    events_out.append({"error": f"HTTP {resp.status_code}", "page": page})
+                    break
+                events = resp.json()
+                if not events:
+                    break
+                found_older = False
+                for event in events:
+                    if event.get("type") != "PushEvent":
+                        continue
+                    created_at_str = event.get("created_at", "")
+                    event_dt = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                    event_date = event_dt.astimezone(tz).date()
+                    if event_date < target_date:
+                        found_older = True
+                        break
+                    if event_date == target_date:
+                        payload = event.get("payload", {})
+                        commits = payload.get("commits", [])
+                        distinct_size = payload.get("distinct_size") or len(commits)
+                        events_out.append({
+                            "repo": event.get("repo", {}).get("name"),
+                            "pushed_at": created_at_str,
+                            "pushed_at_local": event_dt.astimezone(tz).isoformat(),
+                            "distinct_size": distinct_size,
+                            "commits_in_payload": len(commits),
+                            "commits": [{"sha": c["sha"][:7], "message": c["message"][:60], "author": c.get("author", {}).get("name")} for c in commits],
+                        })
+                if found_older:
+                    break
+        return events_out
+
     async def fetch_commit_count(self, github_username: str, target_date: date, user_tz: str = "UTC") -> int:
         """Count commits pushed by github_username on target_date (in user's timezone)."""
         tz = ZoneInfo(user_tz)
@@ -64,14 +104,10 @@ class GitHubClient:
                         break
 
                     if event_date == target_date:
-                        # Count commits in this push
+                        # Use distinct_size (GitHub's authoritative count per push).
+                        # Falls back to len(commits) since GitHub caps commits[] at 20.
                         payload = event.get("payload", {})
-                        commits = payload.get("commits", [])
-                        # Filter to commits authored by this user
-                        for commit in commits:
-                            author = commit.get("author", {})
-                            if author.get("name") == github_username or event.get("actor", {}).get("login") == github_username:
-                                commit_count += 1
+                        commit_count += payload.get("distinct_size") or len(payload.get("commits", []))
 
                 if found_older:
                     break

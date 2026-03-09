@@ -17,6 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.dependencies import get_current_user, get_db
 from app.models.activity import DailyActivity
+from app.services.activity import _decrypt_token
+from app.services.github import GitHubClient
 from app.models.car import CarCatalog, CarOwnership
 from app.models.cosmetic import CosmeticInventory
 from app.models.event import DailyProcessedDay, DailyRunEvents
@@ -760,4 +762,62 @@ async def test_reset_account(
             "active_car_id": str(current_user.active_car_id) if current_user.active_car_id else None,
         },
         "note": "All game data wiped. Starter car re-awarded. Call GET /run to start fresh.",
+    }
+
+
+# ---------------------------------------------------------------------------
+# 13. Debug: fetch raw GitHub push events for today
+# ---------------------------------------------------------------------------
+
+@router.get("/activity/github-debug")
+async def test_github_activity_debug(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Fetch raw GitHub push events for today and the cached activity record.
+    Shows exactly what the API returns so you can diagnose missing commits.
+    """
+    today = _today_for_user(current_user)
+
+    # Current cached activity in DB
+    cached = await db.scalar(
+        select(DailyActivity).where(
+            DailyActivity.user_id == current_user.id,
+            DailyActivity.date == today,
+        )
+    )
+
+    # Force fresh fetch from GitHub
+    access_token = await _decrypt_token(current_user.id, db)
+    push_events = []
+    github_error = None
+    live_commit_count = None
+
+    if access_token:
+        try:
+            gh = GitHubClient(access_token)
+            push_events = await gh.fetch_push_events_debug(
+                current_user.github_username, today, current_user.timezone
+            )
+            live_commit_count = sum(e.get("commit_count", 0) for e in push_events if "error" not in e)
+        except Exception as e:
+            github_error = str(e)
+    else:
+        github_error = "No OAuth token found for user"
+
+    return {
+        "date": str(today),
+        "user_timezone": current_user.timezone,
+        "github_username": current_user.github_username,
+        "cached_activity": {
+            "commit_count": cached.github_commit_count if cached else None,
+            "fetched_at": str(cached.fetched_at) if cached else None,
+            "is_finalized": cached.is_finalized if cached else None,
+        },
+        "live_github": {
+            "commit_count": live_commit_count,
+            "error": github_error,
+            "push_events": push_events,
+        },
     }

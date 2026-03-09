@@ -72,7 +72,8 @@ function ChallengeRow({ c }: { c: TodayChallengeDetail }) {
 }
 
 function TelemetryPanel({ runData }: { runData: ReturnType<typeof useRun>['data'] }) {
-  const { user, run, today_status } = runData!
+  const { user, run, today_status: todayStatusRaw } = runData!
+  const today_status = todayStatusRaw ?? { qualified: false, streak_applied: false, segment_advanced: false, has_challenges: false, all_challenges_met: false, challenges: [] }
   const processRun = useProcessRun()
   const addToast = useStore((s) => s.addToast)
 
@@ -197,24 +198,24 @@ function TelemetryPanel({ runData }: { runData: ReturnType<typeof useRun>['data'
       </div>
 
       {/* Today's status */}
-      {today_status.qualified && (
-        <>
-          <Divider label="Today" />
-          {today_status.segment_advanced ? (
-            <div className="text-xs font-body text-ink3 text-center py-1">
-              ✓ Day complete — keep coding tomorrow
-            </div>
-          ) : (
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleProcess}
-              disabled={processRun.isPending}
-            >
-              {processRun.isPending ? 'Checking...' : 'Check Progress'}
-            </Button>
-          )}
-        </>
+      <Divider label="Today" />
+      {today_status.segment_advanced ? (
+        <div className="text-xs font-body text-ink3 text-center py-1">
+          ✓ Day complete — keep coding tomorrow
+        </div>
+      ) : (
+        <Button
+          variant="primary"
+          size="sm"
+          onClick={handleProcess}
+          disabled={processRun.isPending}
+        >
+          {processRun.isPending
+            ? 'Checking...'
+            : today_status.qualified
+              ? 'Check Progress'
+              : 'Sync Commits'}
+        </Button>
       )}
     </div>
   )
