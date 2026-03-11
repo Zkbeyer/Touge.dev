@@ -90,6 +90,7 @@ class TodayChallengeDetail(BaseModel):
     weather_type: str | None = None
     requirement: dict | None = None
     current_value: int = 0
+    required_value: int = 0
     met: bool = False
     time_save_seconds: int | None = None
     penalty_seconds: int | None = None

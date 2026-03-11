@@ -64,6 +64,7 @@ class TodayChallenge:
     # ghost_difficulty: str | None = None # ghost removed
     requirement: dict | None = None
     current_value: int = 0
+    required_value: int = 0
     met: bool = False
     time_save_seconds: int | None = None
     penalty_seconds: int | None = None
@@ -209,6 +210,18 @@ async def _start_new_run(user: User, exclude_track_id: uuid.UUID | None, db: Asy
     return run, track
 
 
+def _get_required_value(requirement: dict | None) -> int:
+    """Returns the total required numeric value for a requirement (for display)."""
+    if requirement is None:
+        return 0
+    req_type = requirement.get("type", "")
+    if req_type == "commits_and_lc":
+        return requirement.get("commits", 1) + requirement.get("lc", 1)
+    if req_type in ("commits_or_lc",):
+        return max(requirement.get("commits", 1), requirement.get("lc", 1))
+    return requirement.get("count", 0)
+
+
 def _get_activity_value(activity: DailyActivity, requirement: dict | None) -> int:
     """Returns the current numeric value for a requirement type (for display)."""
     if requirement is None or activity is None:
@@ -227,7 +240,9 @@ def _get_activity_value(activity: DailyActivity, requirement: dict | None) -> in
     elif req_type == "commits_or_lc":
         return max(activity.github_commit_count, activity.lc_total_accepted)
     elif req_type == "commits_and_lc":
-        return activity.github_commit_count  # shows commit progress; lc tracked via met flag
+        commits_needed = requirement.get("commits", 1)
+        lc_needed = requirement.get("lc", 1)
+        return min(activity.github_commit_count, commits_needed) + min(activity.lc_total_accepted, lc_needed)
     elif req_type == "repos":
         return activity.github_repo_count
     return 0
@@ -243,6 +258,7 @@ def _build_challenge_list(events: DailyRunEvents, activity: DailyActivity) -> li
             corner_type=events.corner_type,
             requirement=events.corner_requirement,
             current_value=_get_activity_value(activity, events.corner_requirement),
+            required_value=_get_required_value(events.corner_requirement),
             met=met,
             time_save_seconds=events.corner_time_save_seconds,
         ))
@@ -253,6 +269,7 @@ def _build_challenge_list(events: DailyRunEvents, activity: DailyActivity) -> li
             weather_type=events.weather_type,
             requirement=events.weather_requirement,
             current_value=_get_activity_value(activity, events.weather_requirement),
+            required_value=_get_required_value(events.weather_requirement),
             met=met,
             penalty_seconds=events.weather_penalty_seconds,
         ))
@@ -293,6 +310,7 @@ async def _finalize_today_segment(
             corner_type=events.corner_type,
             requirement=events.corner_requirement,
             current_value=_get_activity_value(activity, events.corner_requirement),
+            required_value=_get_required_value(events.corner_requirement),
             met=corner_met,
             time_save_seconds=events.corner_time_save_seconds,
         ))
@@ -315,6 +333,7 @@ async def _finalize_today_segment(
             weather_type=events.weather_type,
             requirement=events.weather_requirement,
             current_value=_get_activity_value(activity, events.weather_requirement),
+            required_value=_get_required_value(events.weather_requirement),
             met=survived,
             penalty_seconds=events.weather_penalty_seconds,
         ))

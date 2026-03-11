@@ -247,6 +247,7 @@ def _serialize_today_status(status: TodayStatus) -> dict:
                 # "ghost_difficulty": c.ghost_difficulty, # ghost removed
                 "requirement": c.requirement,
                 "current_value": c.current_value,
+                "required_value": c.required_value,
                 "met": c.met,
                 "time_save_seconds": c.time_save_seconds,
                 "penalty_seconds": c.penalty_seconds,

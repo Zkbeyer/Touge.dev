@@ -47,10 +47,7 @@ function ChallengeRow({ c, dark = false }: { c: TodayChallengeDetail; dark?: boo
       : c.penalty_seconds != null ? `+${c.penalty_seconds}s if failed` : ''
 
   const currentVal = c.current_value ?? 0
-  const required =
-    typeof c.requirement === 'object' && c.requirement !== null
-      ? (c.requirement['count'] ?? Object.values(c.requirement).find(v => typeof v === 'number') ?? 0)
-      : 0
+  const required = c.required_value
 
   const textPrimary = dark ? 'text-paper' : 'text-ink'
   const textSecondary = dark ? 'text-paper/50' : 'text-ink3'

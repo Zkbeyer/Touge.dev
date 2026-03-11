@@ -105,6 +105,7 @@ def _today_status_response(status: TodayStatus) -> TodayStatusResponse:
                 weather_type=c.weather_type,
                 requirement=c.requirement,
                 current_value=c.current_value,
+                required_value=c.required_value,
                 met=c.met,
                 time_save_seconds=c.time_save_seconds,
                 penalty_seconds=c.penalty_seconds,

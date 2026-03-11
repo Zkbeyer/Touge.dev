@@ -63,6 +63,7 @@ export interface TodayChallengeDetail {
   weather_type: string | null
   requirement: Record<string, unknown> | null
   current_value: number | null
+  required_value: number
   met: boolean
   time_save_seconds: number | null
   penalty_seconds: number | null
