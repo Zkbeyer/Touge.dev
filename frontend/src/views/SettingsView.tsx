@@ -15,6 +15,8 @@ export function SettingsView() {
   const [removing, setRemoving] = useState(false)
   const [lcValidated, setLcValidated] = useState(false)
   const [currentLc, setCurrentLc] = useState<string | null>(null)
+  const [debugDump, setDebugDump] = useState<string | null>(null)
+  const [debugLoading, setDebugLoading] = useState(false)
 
   useEffect(() => {
     api.get<UserResponse>('/auth/me')
@@ -38,6 +40,25 @@ export function SettingsView() {
       addToast(e instanceof Error ? e.message : 'Validation failed — check username', 'error')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDebug = async () => {
+    const target = username.trim() || currentLc
+    if (!target) {
+      addToast('Enter a username to debug', 'error')
+      return
+    }
+    setDebugLoading(true)
+    try {
+      const result = await api.get<{ base_url: string; username: string; results: Record<string, unknown> }>(
+        `/settings/leetcode/debug?username=${encodeURIComponent(target)}`
+      )
+      setDebugDump(JSON.stringify(result, null, 2))
+    } catch (e: unknown) {
+      setDebugDump(e instanceof Error ? e.message : 'Request failed')
+    } finally {
+      setDebugLoading(false)
     }
   }
 
@@ -104,6 +125,25 @@ export function SettingsView() {
               >
                 {removing ? '...' : 'Remove'}
               </Button>
+            )}
+          </div>
+
+          <div className="mt-4">
+            <Divider label="Debug" />
+            <div className="mt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleDebug}
+                disabled={debugLoading || (!username.trim() && !currentLc)}
+              >
+                {debugLoading ? 'Fetching...' : 'Fetch Raw API Response'}
+              </Button>
+            </div>
+            {debugDump && (
+              <pre className="mt-2 p-3 bg-ink text-paper/80 text-[10px] font-mono rounded-card overflow-x-auto whitespace-pre-wrap">
+                {debugDump}
+              </pre>
             )}
           </div>
         </div>

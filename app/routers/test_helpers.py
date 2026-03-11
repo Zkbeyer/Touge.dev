@@ -19,6 +19,7 @@ from app.dependencies import get_current_user, get_db
 from app.models.activity import DailyActivity
 from app.services.activity import _decrypt_token
 from app.services.github import GitHubClient
+from app.services.leetcode import LeetCodeClient
 from app.models.car import CarCatalog, CarOwnership
 from app.models.cosmetic import CosmeticInventory
 from app.models.event import DailyProcessedDay, DailyRunEvents
@@ -27,6 +28,16 @@ from app.models.run import CompletedRun, Run
 from app.models.stats import LifetimeStats
 from app.models.track import Track
 from app.models.user import User
+from app.services.events import (
+    CORNER_CHALLENGES,
+    CORNER_SAVES,
+    WEATHER_CHALLENGES,
+    WEATHER_PENALTIES,
+    _generate_weather_requirement,
+    _pick_corner_challenge,
+    _pick_weather_challenge,
+    _roll,
+)
 from app.services.processor import (
     CatchUpSummary,
     TodayStatus,
@@ -59,6 +70,7 @@ async def _inject_activity(
     lc_medium: int,
     lc_hard: int,
     db: AsyncSession,
+    repos: int = 1,
 ) -> None:
     """Upsert daily_activity and clear any existing processed-day record so
     the processor treats this date as fresh."""
@@ -67,6 +79,7 @@ async def _inject_activity(
         user_id=user_id,
         date=target_date,
         github_commit_count=commits,
+        github_repo_count=repos,
         lc_easy_accepted=lc_easy,
         lc_medium_accepted=lc_medium,
         lc_hard_accepted=lc_hard,
@@ -77,6 +90,7 @@ async def _inject_activity(
         constraint="uq_daily_activity_user_date",
         set_={
             "github_commit_count": commits,
+            "github_repo_count": repos,
             "lc_easy_accepted": lc_easy,
             "lc_medium_accepted": lc_medium,
             "lc_hard_accepted": lc_hard,
@@ -140,6 +154,7 @@ def _serialize_summary(s: CatchUpSummary) -> dict:
 class InjectActivityBody(BaseModel):
     target_date: date | None = None   # defaults to next unprocessed date
     commits: int = 1
+    repos: int = 1
     lc_easy: int = 0
     lc_medium: int = 0
     lc_hard: int = 0
@@ -149,6 +164,7 @@ class ProcessDayBody(BaseModel):
     """Inject activity for a date and immediately process it through the full pipeline."""
     target_date: date | None = None   # defaults to next unprocessed date
     commits: int = 1
+    repos: int = 1
     lc_easy: int = 0
     lc_medium: int = 0
     lc_hard: int = 0
@@ -176,6 +192,10 @@ class SetSegmentBody(BaseModel):
     segment_index: int
 
 
+class ForceWeatherBody(BaseModel):
+    weather_type: str  # fog | rain | night_run
+
+
 # ---------------------------------------------------------------------------
 # 1. Inject activity for a date (no processing — just seeds the activity row)
 # ---------------------------------------------------------------------------
@@ -193,11 +213,13 @@ async def test_inject_activity(
     await _inject_activity(
         current_user.id, target_date,
         body.commits, body.lc_easy, body.lc_medium, body.lc_hard, db,
+        repos=body.repos,
     )
     await db.commit()
     return {
         "injected_date": str(target_date),
         "commits": body.commits,
+        "repos": body.repos,
         "lc_easy": body.lc_easy,
         "lc_medium": body.lc_medium,
         "lc_hard": body.lc_hard,
@@ -250,6 +272,7 @@ async def test_process_day(
     await _inject_activity(
         current_user.id, target_date,
         body.commits, body.lc_easy, body.lc_medium, body.lc_hard, db,
+        repos=body.repos,
     )
     await db.commit()
 
@@ -644,6 +667,7 @@ async def test_get_state(
             {
                 "date": str(a.date),
                 "commits": a.github_commit_count,
+                "repos": a.github_repo_count,
                 "lc_total": a.lc_total_accepted,
                 "is_finalized": a.is_finalized,
             }
@@ -766,7 +790,227 @@ async def test_reset_account(
 
 
 # ---------------------------------------------------------------------------
-# 13. Debug: fetch raw GitHub push events for today
+# 13. Advance date by 1 day (no game logic — pure date skip)
+# ---------------------------------------------------------------------------
+
+@router.post("/run/advance-date")
+async def test_advance_date(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Bump last_processed_date by 1 day and clear today's processed state so GET /run starts fresh."""
+    run, _ = await get_or_create_run(current_user, db)
+
+    if run.last_processed_date is None:
+        run.last_processed_date = run.start_date
+    else:
+        run.last_processed_date = run.last_processed_date + timedelta(days=1)
+
+    # Clear the real calendar today's records so the processor treats it as a new day
+    today = _today_for_user(current_user)
+    await db.execute(
+        delete(DailyProcessedDay).where(
+            DailyProcessedDay.user_id == current_user.id,
+            DailyProcessedDay.date == today,
+        )
+    )
+    await db.execute(
+        delete(DailyRunEvents).where(
+            DailyRunEvents.user_id == current_user.id,
+            DailyRunEvents.date == today,
+        )
+    )
+
+    await db.commit()
+    next_test = run.last_processed_date + timedelta(days=1)
+    return {
+        "advanced_to": str(run.last_processed_date),
+        "next_test_date": str(next_test),
+    }
+
+
+# ---------------------------------------------------------------------------
+# 14. Event pool inspector
+# ---------------------------------------------------------------------------
+
+@router.get("/events/pool")
+async def test_events_pool(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the full eligible challenge pool (corner + weather) at current run state,
+    plus the deterministically picked challenge for today's date."""
+    run, track = await get_or_create_run(current_user, db)
+    has_lc = current_user.leetcode_validated
+    tier = min(run.segment_index // 5, 3)
+
+    layout = track.segment_layout or []
+    current_segment = None
+    if layout and run.segment_index < len(layout):
+        seg = layout[run.segment_index]
+        current_segment = {
+            "index": run.segment_index,
+            "type": seg.get("type"),
+            "name": seg.get("name"),
+        }
+
+    today = _today_for_user(current_user)
+    corner_pick_roll = _roll(current_user.id, today, "corner_challenge_pick")
+    weather_pick_roll = _roll(current_user.id, today, "weather_challenge_pick")
+
+    corners = [
+        {
+            "corner_type": ct,
+            "time_save_seconds": CORNER_SAVES[ct],
+            "pool": [
+                c for c in CORNER_CHALLENGES[ct]
+                if c["min_tier"] <= tier and (not c["requires_lc"] or has_lc)
+            ],
+            "picked": _pick_corner_challenge(ct, run.segment_index, has_lc, corner_pick_roll),
+        }
+        for ct in ["sweeper", "chicane", "hairpin"]
+    ]
+
+    weather = [
+        {
+            "weather_type": wt,
+            "penalty_seconds": WEATHER_PENALTIES[wt],
+            "pool": [c for c in WEATHER_CHALLENGES[wt] if not c["requires_lc"] or has_lc],
+            "picked": _pick_weather_challenge(wt, has_lc, weather_pick_roll),
+        }
+        for wt in ["fog", "rain", "night_run"]
+    ]
+
+    return {
+        "segment_index": run.segment_index,
+        "tier": tier,
+        "has_leetcode": has_lc,
+        "current_segment": current_segment,
+        "corners": corners,
+        "weather": weather,
+    }
+
+
+# ---------------------------------------------------------------------------
+# 15. Force weather on the next test date
+# ---------------------------------------------------------------------------
+
+VALID_WEATHER_TYPES = {"fog", "rain", "night_run"}
+
+
+@router.post("/events/force-weather")
+async def test_force_weather(
+    body: ForceWeatherBody,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Pre-seed a weather event for the next unprocessed date. Processor will use it instead of rolling."""
+    if body.weather_type not in VALID_WEATHER_TYPES:
+        raise HTTPException(status_code=400, detail=f"weather_type must be one of: {VALID_WEATHER_TYPES}")
+
+    run, _ = await get_or_create_run(current_user, db)
+    target_date = _next_test_date(run)
+    has_lc = current_user.leetcode_validated
+
+    weather_req = _generate_weather_requirement(body.weather_type, has_lc)
+    weather_penalty = WEATHER_PENALTIES[body.weather_type]
+
+    stmt = pg_insert(DailyRunEvents).values(
+        user_id=current_user.id,
+        run_id=run.id,
+        date=target_date,
+        segment_index=run.segment_index,
+        weather_roll=0.01,       # below 0.25 threshold — weather always fires
+        weather_type=body.weather_type,
+        weather_requirement=weather_req,
+        weather_penalty_seconds=weather_penalty,
+        corner_roll=0.9,         # above 0.60 — no corner from roll
+        corner_type=None,
+        corner_requirement=None,
+        corner_time_save_seconds=None,
+        ghost_roll=0.9,          # above 0.30 — no ghost
+        processed=False,
+    ).on_conflict_do_update(
+        constraint="uq_daily_run_events_user_date",
+        set_={
+            "weather_roll": 0.01,
+            "weather_type": body.weather_type,
+            "weather_requirement": weather_req,
+            "weather_penalty_seconds": weather_penalty,
+            "corner_type": None,
+            "corner_requirement": None,
+            "corner_time_save_seconds": None,
+            "ghost_roll": 0.9,
+            "processed": False,
+        },
+    )
+    await db.execute(stmt)
+    await db.commit()
+    return {
+        "forced_weather": body.weather_type,
+        "for_date": str(target_date),
+    }
+
+
+# ---------------------------------------------------------------------------
+# 16. Debug: fetch raw LeetCode accepted submissions for today
+# ---------------------------------------------------------------------------
+
+@router.get("/activity/leetcode-debug")
+async def test_leetcode_activity_debug(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Fetch raw LeetCode accepted submissions for today and the cached activity record.
+    Requires leetcode_username to be set and validated.
+    """
+    today = _today_for_user(current_user)
+
+    cached = await db.scalar(
+        select(DailyActivity).where(
+            DailyActivity.user_id == current_user.id,
+            DailyActivity.date == today,
+        )
+    )
+
+    submissions = []
+    lc_error = None
+
+    if not current_user.leetcode_username:
+        lc_error = "No LeetCode username configured"
+    else:
+        try:
+            lc = LeetCodeClient()
+            submissions = await lc.fetch_submissions_debug(
+                current_user.leetcode_username, today, current_user.timezone
+            )
+        except Exception as e:
+            lc_error = str(e)
+
+    return {
+        "date": str(today),
+        "user_timezone": current_user.timezone,
+        "leetcode_username": current_user.leetcode_username,
+        "leetcode_validated": current_user.leetcode_validated,
+        "cached_activity": {
+            "lc_easy": cached.lc_easy_accepted if cached else None,
+            "lc_medium": cached.lc_medium_accepted if cached else None,
+            "lc_hard": cached.lc_hard_accepted if cached else None,
+            "lc_total": cached.lc_total_accepted if cached else None,
+            "fetched_at": str(cached.fetched_at) if cached else None,
+            "is_finalized": cached.is_finalized if cached else None,
+        },
+        "live_leetcode": {
+            "submission_count": len(submissions),
+            "error": lc_error,
+            "submissions": submissions,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# 18. Debug: fetch raw GitHub push events for today
 # ---------------------------------------------------------------------------
 
 @router.get("/activity/github-debug")
@@ -800,7 +1044,7 @@ async def test_github_activity_debug(
             push_events = await gh.fetch_push_events_debug(
                 current_user.github_username, today, current_user.timezone
             )
-            live_commit_count = sum(e.get("commit_count", 0) for e in push_events if "error" not in e)
+            live_commit_count = len([e for e in push_events if "error" not in e])
         except Exception as e:
             github_error = str(e)
     else:

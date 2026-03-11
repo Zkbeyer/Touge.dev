@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     github_client_secret: str = ""
     github_redirect_uri: str = "http://localhost:8000/auth/github/callback"
 
-    lc_api_base_url: str = "https://alfa-leetcode-api.0sanjeev.workers.dev"
+    lc_api_base_url: str = "https://alfa-leetcode-api.onrender.com"
 
     app_base_url: str = "http://localhost:8000"
     environment: str = "development"

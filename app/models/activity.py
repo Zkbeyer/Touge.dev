@@ -22,5 +22,6 @@ class DailyActivity(Base):
     lc_medium_accepted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     lc_hard_accepted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     lc_total_accepted: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    github_repo_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_finalized: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

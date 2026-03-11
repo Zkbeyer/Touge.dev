@@ -226,6 +226,10 @@ def _get_activity_value(activity: DailyActivity, requirement: dict | None) -> in
         return activity.lc_total_accepted
     elif req_type == "commits_or_lc":
         return max(activity.github_commit_count, activity.lc_total_accepted)
+    elif req_type == "commits_and_lc":
+        return activity.github_commit_count  # shows commit progress; lc tracked via met flag
+    elif req_type == "repos":
+        return activity.github_repo_count
     return 0
 
 

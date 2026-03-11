@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AppShell } from '../components/layout/AppShell'
 import { MountainScene } from '../scene/MountainScene'
 import { useRun, useProcessRun } from '../hooks/useRun'
@@ -33,8 +33,10 @@ function SegmentBadge({ type }: { type: string }) {
   )
 }
 
-function ChallengeRow({ c }: { c: TodayChallengeDetail }) {
-  const label =
+function ChallengeRow({ c, dark = false }: { c: TodayChallengeDetail; dark?: boolean }) {
+  const reqLabel = (c.requirement as Record<string, unknown>)?.label as string | undefined
+
+  const categoryLabel =
     c.event_type === 'corner'
       ? `${capFirst(c.corner_type ?? '')} Corner`
       : `Weather · ${capFirst(c.weather_type ?? '')}`
@@ -50,21 +52,29 @@ function ChallengeRow({ c }: { c: TodayChallengeDetail }) {
       ? (c.requirement['count'] ?? Object.values(c.requirement).find(v => typeof v === 'number') ?? 0)
       : 0
 
+  const textPrimary = dark ? 'text-paper' : 'text-ink'
+  const textSecondary = dark ? 'text-paper/50' : 'text-ink3'
+  const textProgress = dark ? 'text-paper/60' : 'text-ink3'
+  const metColor = dark ? '#4ade80' : '#166534'
+  const unmetColor = dark ? '#f87171' : '#c8102e'
+
   return (
     <div className="flex items-center justify-between py-1.5">
       <div className="flex items-center gap-2 min-w-0">
         <div
           className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-          style={{ background: c.met ? '#166534' : '#c8102e' }}
+          style={{ background: c.met ? metColor : unmetColor }}
         />
         <div className="min-w-0">
-          <span className="text-xs font-body text-ink truncate block">{label}</span>
-          {detail && (
-            <span className="text-[10px] font-body text-ink3">{detail}</span>
+          {reqLabel && (
+            <span className={`text-sm font-body ${textPrimary} truncate block`}>{reqLabel}</span>
           )}
+          <span className={`text-[10px] font-body ${textSecondary}`}>
+            {categoryLabel}{detail ? ` · ${detail}` : ''}
+          </span>
         </div>
       </div>
-      <span className="text-xs font-body text-ink3 flex-shrink-0 ml-2">
+      <span className={`text-xs font-body ${textProgress} flex-shrink-0 ml-2`}>
         {currentVal} / {String(required)}
       </span>
     </div>
@@ -76,21 +86,6 @@ function TelemetryPanel({ runData }: { runData: ReturnType<typeof useRun>['data'
   const today_status = todayStatusRaw ?? { qualified: false, streak_applied: false, segment_advanced: false, has_challenges: false, all_challenges_met: false, challenges: [] }
   const processRun = useProcessRun()
   const addToast = useStore((s) => s.addToast)
-
-  const [displayTime, setDisplayTime] = useState(run?.stopwatch_seconds ?? 0)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  useEffect(() => {
-    setDisplayTime(run?.stopwatch_seconds ?? 0)
-    if (today_status.qualified && !today_status.segment_advanced) {
-      intervalRef.current = setInterval(() => {
-        setDisplayTime((t) => t + 1)
-      }, 1000)
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
-  }, [run?.stopwatch_seconds, today_status.qualified, today_status.segment_advanced])
 
   const handleProcess = async () => {
     try {
@@ -163,10 +158,10 @@ function TelemetryPanel({ runData }: { runData: ReturnType<typeof useRun>['data'
 
           <div>
             <div className="text-[10px] tracking-widest uppercase text-ink3 font-body mb-1">
-              Stopwatch
+              Run Time
             </div>
             <div className="font-display text-display-lg" style={{ color: '#c47a0a' }}>
-              {fmtSeconds(displayTime)}
+              {fmtSeconds(run.stopwatch_seconds)}
             </div>
           </div>
 
@@ -204,18 +199,27 @@ function TelemetryPanel({ runData }: { runData: ReturnType<typeof useRun>['data'
           ✓ Day complete — keep coding tomorrow
         </div>
       ) : (
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={handleProcess}
-          disabled={processRun.isPending}
-        >
-          {processRun.isPending
-            ? 'Checking...'
-            : today_status.qualified
-              ? 'Check Progress'
-              : 'Sync Commits'}
-        </Button>
+        <>
+          {today_status.challenges.length > 0 && (
+            <div className="divide-y divide-paper2">
+              {today_status.challenges.map((c, i) => (
+                <ChallengeRow key={i} c={c} dark={false} />
+              ))}
+            </div>
+          )}
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleProcess}
+            disabled={processRun.isPending}
+          >
+            {processRun.isPending
+              ? 'Checking...'
+              : today_status.qualified
+                ? 'Check Progress'
+                : 'Sync Commits'}
+          </Button>
+        </>
       )}
     </div>
   )
@@ -295,7 +299,7 @@ export function RunView() {
                   </div>
                   <div className="divide-y divide-white/5">
                     {challenges.map((c, i) => (
-                      <ChallengeRow key={i} c={c} />
+                      <ChallengeRow key={i} c={c} dark={true} />
                     ))}
                   </div>
                 </div>

@@ -54,18 +54,21 @@ async def get_or_fetch_activity(
 
     # Fetch from GitHub
     github_count = 0
+    github_repo_count = 0
     access_token = await _decrypt_token(user.id, db)
     if access_token:
         try:
             gh_client = GitHubClient(access_token)
-            github_count = await gh_client.fetch_commit_count(
+            github_count, github_repo_count = await gh_client.fetch_commit_count(
                 user.github_username, target_date, user.timezone
             )
         except GitHubRateLimitError:
             # Use existing data if available
             github_count = existing.github_commit_count if existing else 0
+            github_repo_count = existing.github_repo_count if existing else 0
         except Exception:
             github_count = existing.github_commit_count if existing else 0
+            github_repo_count = existing.github_repo_count if existing else 0
 
     # Fetch from LeetCode (if configured)
     lc_easy = lc_medium = lc_hard = lc_total = 0
@@ -95,6 +98,7 @@ async def get_or_fetch_activity(
         user_id=user.id,
         date=target_date,
         github_commit_count=github_count,
+        github_repo_count=github_repo_count,
         lc_easy_accepted=lc_easy,
         lc_medium_accepted=lc_medium,
         lc_hard_accepted=lc_hard,
@@ -105,6 +109,7 @@ async def get_or_fetch_activity(
         constraint="uq_daily_activity_user_date",
         set_={
             "github_commit_count": github_count,
+            "github_repo_count": github_repo_count,
             "lc_easy_accepted": lc_easy,
             "lc_medium_accepted": lc_medium,
             "lc_hard_accepted": lc_hard,
@@ -112,8 +117,20 @@ async def get_or_fetch_activity(
             "fetched_at": now_utc,
             "is_finalized": should_finalize,
         },
-    ).returning(DailyActivity)
+    )
 
-    result = await db.execute(stmt)
-    activity = result.scalar_one()
-    return activity
+    await db.execute(stmt)
+    await db.flush()
+
+    # Re-fetch fresh values — RETURNING + identity map returns stale cached object
+    if existing:
+        await db.refresh(existing)
+        return existing
+
+    activity = await db.scalar(
+        select(DailyActivity).where(
+            DailyActivity.user_id == user.id,
+            DailyActivity.date == target_date,
+        )
+    )
+    return activity  # type: ignore[return-value]

@@ -49,12 +49,13 @@ class GitHubClient:
                     if event_date == target_date:
                         payload = event.get("payload", {})
                         commits = payload.get("commits", [])
-                        distinct_size = payload.get("distinct_size") or len(commits)
                         events_out.append({
                             "repo": event.get("repo", {}).get("name"),
                             "pushed_at": created_at_str,
                             "pushed_at_local": event_dt.astimezone(tz).isoformat(),
-                            "distinct_size": distinct_size,
+                            "size": payload.get("size", 0),
+                            "distinct_size": payload.get("distinct_size", 0),
+                            "counted_as": payload.get("size") or payload.get("distinct_size") or 1,
                             "commits_in_payload": len(commits),
                             "commits": [{"sha": c["sha"][:7], "message": c["message"][:60], "author": c.get("author", {}).get("name")} for c in commits],
                         })
@@ -62,11 +63,13 @@ class GitHubClient:
                     break
         return events_out
 
-    async def fetch_commit_count(self, github_username: str, target_date: date, user_tz: str = "UTC") -> int:
-        """Count commits pushed by github_username on target_date (in user's timezone)."""
+    async def fetch_commit_count(self, github_username: str, target_date: date, user_tz: str = "UTC") -> tuple[int, int]:
+        """Count pushes and distinct repos pushed to by github_username on target_date (in user's timezone).
+        Returns (commit_count, repo_count)."""
         tz = ZoneInfo(user_tz)
         # We need to look at events — fetch up to 3 pages of PushEvents
         commit_count = 0
+        repos_seen: set[str] = set()
         async with httpx.AsyncClient(timeout=30.0) as client:
             for page in range(1, 4):  # max 3 pages = 300 events
                 url = f"{GITHUB_API_BASE}/users/{github_username}/events"
@@ -104,10 +107,11 @@ class GitHubClient:
                         break
 
                     if event_date == target_date:
-                        # Use distinct_size (GitHub's authoritative count per push).
-                        # Falls back to len(commits) since GitHub caps commits[] at 20.
-                        payload = event.get("payload", {})
-                        commit_count += payload.get("distinct_size") or len(payload.get("commits", []))
+                        # Any push on the target date counts as 1 qualifying push.
+                        commit_count += 1
+                        repo_name = event.get("repo", {}).get("name", "")
+                        if repo_name:
+                            repos_seen.add(repo_name)
 
                 if found_older:
                     break
@@ -115,7 +119,7 @@ class GitHubClient:
                 # If all events on this page are newer than target_date, fetch next page
                 # (GitHub returns newest first)
 
-        return commit_count
+        return commit_count, len(repos_seen)
 
     async def get_user_info(self, access_token: str) -> dict:
         """Fetch authenticated user info from GitHub."""

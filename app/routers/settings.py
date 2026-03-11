@@ -1,7 +1,9 @@
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.dependencies import get_current_user, get_db
 from app.models.user import User
 from app.services.leetcode import LeetCodeClient
@@ -48,3 +50,46 @@ async def remove_leetcode(
     current_user.leetcode_validated = False
     await db.commit()
     return {"detail": "LeetCode integration removed"}
+
+
+@router.get("/leetcode/debug")
+async def leetcode_debug(
+    username: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Return raw responses from the LeetCode API for a given username."""
+    base = settings.lc_api_base_url.rstrip("/")
+    results: dict = {}
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        # Profile endpoint
+        try:
+            r = await client.get(f"{base}/{username}")
+            results["profile"] = {
+                "status_code": r.status_code,
+                "body": r.json() if "application/json" in r.headers.get("content-type", "") else r.text[:500],
+            }
+        except Exception as e:
+            results["profile"] = {"error": str(e)}
+
+        # Submission endpoint
+        try:
+            r = await client.get(f"{base}/{username}/submission", params={"limit": 5})
+            results["submission"] = {
+                "status_code": r.status_code,
+                "body": r.json() if "application/json" in r.headers.get("content-type", "") else r.text[:500],
+            }
+        except Exception as e:
+            results["submission"] = {"error": str(e)}
+
+        # Accepted submission endpoint
+        try:
+            r = await client.get(f"{base}/{username}/acSubmission", params={"limit": 5})
+            results["ac_submission"] = {
+                "status_code": r.status_code,
+                "body": r.json() if "application/json" in r.headers.get("content-type", "") else r.text[:500],
+            }
+        except Exception as e:
+            results["ac_submission"] = {"error": str(e)}
+
+    return {"base_url": base, "username": username, "results": results}

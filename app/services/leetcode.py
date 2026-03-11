@@ -23,6 +23,48 @@ class LeetCodeClient:
             except Exception:
                 return False
 
+    async def fetch_submissions_debug(
+        self, username: str, target_date: date, user_tz: str = "UTC"
+    ) -> list[dict]:
+        """Return all accepted submissions for target_date with full detail — for debugging only."""
+        tz = ZoneInfo(user_tz)
+        out = []
+
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            try:
+                resp = await client.get(
+                    f"{self.base_url}/{username}/acSubmission",
+                    params={"limit": 50},
+                )
+                if resp.status_code != 200:
+                    return [{"error": f"HTTP {resp.status_code}"}]
+                data = resp.json()
+                submissions = data if isinstance(data, list) else data.get("submission", [])
+            except Exception as e:
+                return [{"error": str(e)}]
+
+        for sub in submissions:
+            timestamp = sub.get("timestamp")
+            if not timestamp:
+                continue
+            try:
+                sub_dt = datetime.fromtimestamp(int(timestamp), tz=timezone.utc).astimezone(tz)
+            except (ValueError, TypeError):
+                continue
+            if sub_dt.date() < target_date:
+                break  # API returns newest first
+            if sub_dt.date() != target_date:
+                continue
+            out.append({
+                "title": sub.get("title") or sub.get("titleSlug") or sub.get("name", "?"),
+                "difficulty": (sub.get("difficulty") or "").capitalize(),
+                "submitted_at_local": sub_dt.isoformat(),
+                "lang": sub.get("lang") or sub.get("langName", "?"),
+                "status": sub.get("statusDisplay") or "Accepted",
+            })
+
+        return out
+
     async def fetch_accepted_counts(
         self, username: str, target_date: date, user_tz: str = "UTC"
     ) -> dict[str, int]:
@@ -36,7 +78,7 @@ class LeetCodeClient:
         async with httpx.AsyncClient(timeout=15.0) as client:
             try:
                 resp = await client.get(
-                    f"{self.base_url}/{username}/submission",
+                    f"{self.base_url}/{username}/acSubmission",
                     params={"limit": 40},
                 )
                 if resp.status_code != 200:
@@ -47,9 +89,6 @@ class LeetCodeClient:
                 return counts
 
         for sub in submissions:
-            if sub.get("statusDisplay") != "Accepted":
-                continue
-
             timestamp = sub.get("timestamp")
             if not timestamp:
                 continue
